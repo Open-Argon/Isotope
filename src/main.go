@@ -4,12 +4,14 @@ import (
 	"github.com/Open-Argon/Isotope/src/args"
 	"github.com/Open-Argon/Isotope/src/help"
 	"github.com/Open-Argon/Isotope/src/install"
+	pack "github.com/Open-Argon/Isotope/src/package"
 	"github.com/Open-Argon/Isotope/src/version"
 )
 
 var usage = "isotope <command> [options]"
 var options = help.Options{
 	{"install a package", "install [options]"},
+	{"package a project", "package [options]"},
 	{"show help", "help"},
 	{"show version", "version"},
 }
@@ -22,6 +24,8 @@ func main() {
 	switch args.Args[0] {
 	case "install":
 		install.Install()
+	case "package":
+		pack.Pack()
 	case "help":
 		help.Help(usage, options)
 	case "version":
