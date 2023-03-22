@@ -2,7 +2,7 @@ package start
 
 import (
 	"os"
-	"path"
+	"path/filepath"
 )
 
 var ZippedPath = ""
@@ -12,7 +12,8 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	ZippedPath = path.Join(path.Dir(exc), "__zipped__")
+	excPath := filepath.Dir(exc)
+	ZippedPath = filepath.Join(excPath, "zipped")
 	err = os.MkdirAll(ZippedPath, os.ModePerm)
 	if err != nil {
 		panic(err)

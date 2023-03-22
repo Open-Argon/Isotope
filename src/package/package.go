@@ -6,7 +6,7 @@ import (
 	"github.com/Open-Argon/Isotope/src/package/zip"
 )
 
-var usage = `isotope pack [options]`
+var usage = `pack [options]`
 var o = help.Options{
 	{"pack an module into a package", "zip [path]"},
 	{"push a module to a remote", "push [package name]"},
