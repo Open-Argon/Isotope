@@ -9,49 +9,92 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+
+	validpackagename "github.com/Open-Argon/Isotope/src/validPackageName"
 )
 
-type Package map[string]any
+type Package struct {
+	Name         string
+	Version      string
+	Dependencies []dependency
+}
+
+type dependency struct {
+	Name    string
+	Version string
+	URL     string
+}
 
 func ReadPackageAndDependencies(path string) (Package, *bytes.Buffer) {
-	packageFile, err := os.ReadFile(filepath.Join(path, "argon-package.json"))
+	src := filepath.Join(path, "src")
+	packageFile, err := os.ReadFile(filepath.Join(path, "iso-package.json"))
 	if err != nil {
-		log.Fatal("failed to read argon-package.json")
+		log.Fatal(err)
+	}
+	LockFile, err := os.ReadFile(filepath.Join(path, "iso-package-lock.json"))
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	var pkg Package
+	var pkg map[string]any
 	if err := json.Unmarshal(packageFile, &pkg); err != nil {
-		log.Fatal("failed to unmarshal argon-package.json")
+		log.Fatal(err)
 	}
 
-	if _, ok := pkg["name"]; !ok {
+	var pkgObj Package
+
+	var lock []dependency
+	if err := json.Unmarshal(LockFile, &lock); err != nil {
+		log.Fatal(err)
+	}
+	name, ok := pkg["name"]
+	if !ok && name.(string) == "" {
 		log.Fatal("package name not found")
-	} else if _, ok := pkg["version"]; !ok {
+	}
+	if validpackagename.ValidPackageName(name.(string)) != name.(string) {
+		log.Fatal("package name is invalid")
+	}
+	version, ok := pkg["version"]
+	if !ok && version.(string) == "" {
 		log.Fatal("package version not found")
-	} else if _, ok := pkg["dependencies"]; !ok {
-		log.Fatal("package dependencies list not found")
-	} else if _, ok := pkg["name"].(string); !ok {
-		log.Fatal("package name is not a string")
-	} else if _, ok := pkg["version"].(string); !ok {
-		log.Fatal("package name is not a string")
-	} else if _, ok := pkg["dependencies"].([]interface{}); !ok {
-		log.Fatal("package dependencies list is not an array")
 	}
 
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		log.Fatal("src directory does not exist")
+	pkgObj.Name = name.(string)
+	pkgObj.Version = version.(string)
+	pkgObj.Dependencies = lock
+
+	if _, err := os.Stat(src); os.IsNotExist(err) {
+		log.Fatal("src directory not found")
 	}
+
 	buf := new(bytes.Buffer)
 
 	zipWriter := zip.NewWriter(buf)
 	defer zipWriter.Close()
-	err = filepath.Walk(path, func(filePath string, info os.FileInfo, err error) error {
+	packageFileWriter, err := zipWriter.Create("iso-package.json")
+	if err != nil {
+		panic(fmt.Errorf("failed to create zip file contents: %w", err))
+	}
+	_, err = packageFileWriter.Write(packageFile)
+	if err != nil {
+		panic(fmt.Errorf("failed to create zip file contents: %w", err))
+	}
+	LockFileWriter, err := zipWriter.Create("iso-package-lock.json")
+	if err != nil {
+		panic(fmt.Errorf("failed to create zip file contents: %w", err))
+	}
+	_, err = LockFileWriter.Write(LockFile)
+	if err != nil {
+		panic(fmt.Errorf("failed to create zip file contents: %w", err))
+	}
+	err = filepath.Walk(src, func(filePath string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 		if info.IsDir() {
 			return nil
 		}
+		fmt.Println("packaging", filePath)
 		file, err := os.Open(filePath)
 		if err != nil {
 			return err
@@ -73,5 +116,5 @@ func ReadPackageAndDependencies(path string) (Package, *bytes.Buffer) {
 		panic(fmt.Errorf("failed to create zip file contents: %w", err))
 	}
 
-	return pkg, buf
+	return pkgObj, buf
 }

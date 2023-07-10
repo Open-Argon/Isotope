@@ -8,7 +8,7 @@ import (
 
 var usage = `pack [options]`
 var o = help.Options{
-	{"pack an module into a package", "zip [path]"},
+	{"pack an module into a package", "build [path]"},
 	{"push a module to a remote", "push [package name]"},
 	{"list all zipped packages", "list"},
 	{"show help", "--help, -h"},
@@ -23,7 +23,7 @@ func Pack() {
 	switch args[0] {
 	case "--help", "-h":
 		help.Help(usage, o)
-	case "zip":
+	case "build":
 		zip.Zip()
 	case "push":
 		push()

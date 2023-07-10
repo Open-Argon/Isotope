@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/Open-Argon/Isotope/src/args"
 	"github.com/Open-Argon/Isotope/src/help"
+	Init "github.com/Open-Argon/Isotope/src/init"
 	"github.com/Open-Argon/Isotope/src/install"
 	pack "github.com/Open-Argon/Isotope/src/package"
 	"github.com/Open-Argon/Isotope/src/version"
@@ -30,5 +31,7 @@ func main() {
 		help.Help(usage, options)
 	case "version":
 		version.PrintVersion()
+	case "init":
+		Init.Init()
 	}
 }

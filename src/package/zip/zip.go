@@ -10,7 +10,6 @@ import (
 	"github.com/Open-Argon/Isotope/src/args"
 	"github.com/Open-Argon/Isotope/src/hash"
 	"github.com/Open-Argon/Isotope/src/help"
-	"github.com/Open-Argon/Isotope/src/start"
 )
 
 var usage = `zip [options] [path]`
@@ -20,26 +19,31 @@ var o = help.Options{
 
 func Zip() {
 	args := args.Args[2:]
+	p := ""
 	if len(args) == 0 {
-		help.Help(usage, o)
-		return
-	}
-	p := args[0]
-	switch args[0] {
-	case "--help", "-h":
-		help.Help(usage, o)
-		return
+		var err error
+		p, err = os.Getwd()
+		if err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		p = args[0]
+		switch args[0] {
+		case "--help", "-h":
+			help.Help(usage, o)
+			return
+		}
 	}
 
-	fmt.Println("zipping package...")
+	fmt.Println("building package...")
 	packageFile, buf := ReadPackageAndDependencies(p)
-	hash := hash.Sha256Hex(packageFile["name"].(string))
-	zipPath := path.Join(start.ZippedPath, hash+".zip")
-	fmt.Println("done")
+	hash := hash.Sha256Hex(packageFile.Name)
+	zipPath := path.Join(p, "__isotope__", "builds", hash+".zip")
+	os.MkdirAll(path.Dir(zipPath), os.ModePerm)
 	fmt.Println()
-	fmt.Println("Package:", packageFile["name"])
-	fmt.Println("Version:", packageFile["version"])
-	fmt.Println(len(packageFile["dependencies"].([]any)), "dependencies")
+	fmt.Println("Package:", packageFile.Name)
+	fmt.Println("Version:", packageFile.Version)
+	fmt.Println(len(packageFile.Dependencies), "dependencies")
 	fmt.Println("Size:", buf.Len(), "bytes")
 	fmt.Println()
 	fmt.Println("Saving to", strconv.Quote(zipPath))
