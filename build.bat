@@ -1,1 +1,2 @@
-go build -o ./bin/isotope.exe ./src
+@echo off
+go build -trimpath -ldflags="-s -w" -o bin/isotope.exe ./src

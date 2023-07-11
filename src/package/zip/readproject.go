@@ -16,10 +16,10 @@ import (
 type Package struct {
 	Name         string
 	Version      string
-	Dependencies []dependency
+	Dependencies []Dependency
 }
 
-type dependency struct {
+type Dependency struct {
 	Name    string
 	Version string
 	URL     string
@@ -43,7 +43,7 @@ func ReadPackageAndDependencies(path string) (Package, *bytes.Buffer) {
 
 	var pkgObj Package
 
-	var lock []dependency
+	var lock []Dependency
 	if err := json.Unmarshal(LockFile, &lock); err != nil {
 		log.Fatal(err)
 	}
@@ -88,6 +88,10 @@ func ReadPackageAndDependencies(path string) (Package, *bytes.Buffer) {
 		panic(fmt.Errorf("failed to create zip file contents: %w", err))
 	}
 	err = filepath.Walk(src, func(filePath string, info os.FileInfo, err error) error {
+		abspath, err := filepath.Rel(src, filePath)
+		if err != nil {
+			return err
+		}
 		if err != nil {
 			return err
 		}
@@ -100,7 +104,7 @@ func ReadPackageAndDependencies(path string) (Package, *bytes.Buffer) {
 			return err
 		}
 		defer file.Close()
-		f, err := zipWriter.Create(filePath)
+		f, err := zipWriter.Create(abspath)
 		if err != nil {
 			return err
 		}
