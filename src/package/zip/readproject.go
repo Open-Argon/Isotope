@@ -1,8 +1,9 @@
 package zip
 
 import (
-	"archive/zip"
+	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -27,11 +28,13 @@ type Dependency struct {
 
 func ReadPackageAndDependencies(path string) (Package, *bytes.Buffer) {
 	src := filepath.Join(path, "src")
-	packageFile, err := os.ReadFile(filepath.Join(path, "iso-package.json"))
+	packageFilePath := filepath.Join(path, "iso-package.json")
+	packageFile, err := os.ReadFile(packageFilePath)
 	if err != nil {
 		log.Fatal(err)
 	}
-	LockFile, err := os.ReadFile(filepath.Join(path, "iso-package-lock.json"))
+	LockFilePath := filepath.Join(path, "iso-package-lock.json")
+	LockFile, err := os.ReadFile(LockFilePath)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -69,26 +72,19 @@ func ReadPackageAndDependencies(path string) (Package, *bytes.Buffer) {
 
 	buf := new(bytes.Buffer)
 
-	zipWriter := zip.NewWriter(buf)
-	defer zipWriter.Close()
-	packageFileWriter, err := zipWriter.Create("iso-package.json")
+	gw := gzip.NewWriter(buf)
+	defer gw.Close()
+	tw := tar.NewWriter(gw)
+	defer tw.Close()
+	err = addToArchive(tw, packageFilePath, "iso-package.json")
 	if err != nil {
-		panic(fmt.Errorf("failed to create zip file contents: %w", err))
+		log.Fatal(err)
 	}
-	_, err = packageFileWriter.Write(packageFile)
+	err = addToArchive(tw, LockFilePath, "iso-package-lock.json")
 	if err != nil {
-		panic(fmt.Errorf("failed to create zip file contents: %w", err))
-	}
-	LockFileWriter, err := zipWriter.Create("iso-package-lock.json")
-	if err != nil {
-		panic(fmt.Errorf("failed to create zip file contents: %w", err))
-	}
-	_, err = LockFileWriter.Write(LockFile)
-	if err != nil {
-		panic(fmt.Errorf("failed to create zip file contents: %w", err))
+		log.Fatal(err)
 	}
 	err = filepath.Walk(src, func(filePath string, info os.FileInfo, err error) error {
-		abspath, err := filepath.Rel(src, filePath)
 		if err != nil {
 			return err
 		}
@@ -98,22 +94,14 @@ func ReadPackageAndDependencies(path string) (Package, *bytes.Buffer) {
 		if info.IsDir() {
 			return nil
 		}
-		fmt.Println("packaging", filePath)
-		file, err := os.Open(filePath)
+		saveAs, err := filepath.Rel(src, filePath)
 		if err != nil {
 			return err
 		}
-		defer file.Close()
-		f, err := zipWriter.Create(abspath)
+		err = addToArchive(tw, filePath, saveAs)
 		if err != nil {
 			return err
 		}
-
-		_, err = io.Copy(f, file)
-		if err != nil {
-			return err
-		}
-
 		return nil
 	})
 	if err != nil {
@@ -121,4 +109,45 @@ func ReadPackageAndDependencies(path string) (Package, *bytes.Buffer) {
 	}
 
 	return pkgObj, buf
+}
+
+func addToArchive(tw *tar.Writer, path string, saveAs string) error {
+	// Open the file which will be written into the archive
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	// Get FileInfo about our file providing file size, mode, etc.
+	info, err := file.Stat()
+	if err != nil {
+		return err
+	}
+
+	// Create a tar Header from the FileInfo data
+	header, err := tar.FileInfoHeader(info, info.Name())
+	if err != nil {
+		return err
+	}
+
+	// Use full path as name (FileInfoHeader only takes the basename)
+	// If we don't do this the directory strucuture would
+	// not be preserved
+	// https://golang.org/src/archive/tar/common.go?#L626
+	header.Name = saveAs
+
+	// Write file header to the tar archive
+	err = tw.WriteHeader(header)
+	if err != nil {
+		return err
+	}
+
+	// Copy file content to tar archive
+	_, err = io.Copy(tw, file)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

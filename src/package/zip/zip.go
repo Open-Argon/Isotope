@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"path"
-	"path/filepath"
 	"strconv"
 
 	"github.com/Open-Argon/Isotope/src/args"
@@ -38,8 +37,8 @@ func Zip() {
 
 	fmt.Println("building package...")
 	packageFile, buf := ReadPackageAndDependencies(p)
-	hash := hash.Sha256Hex(packageFile.Name)
-	zipPath := filepath.Join(p, "__isotope__", "builds", hash+".zip")
+	hash := hash.Sha256Hex(packageFile.Name + "@" + packageFile.Version)
+	zipPath := path.Join(p, "__isotope__", "builds", "armod-"+hash+".tar.gz")
 	os.MkdirAll(path.Dir(zipPath), os.ModePerm)
 	fmt.Println()
 	fmt.Println("Package:", packageFile.Name)
