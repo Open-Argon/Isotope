@@ -12,7 +12,7 @@ import (
 	"github.com/Open-Argon/Isotope/src/help"
 )
 
-var usage = `zip [options] [path]`
+var usage = `zip [path] [options]`
 var o = help.Options{
 	{"Show this help message", "--help, -h"},
 }

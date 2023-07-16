@@ -28,12 +28,12 @@ type Dependency struct {
 
 func ReadPackageAndDependencies(path string) (Package, *bytes.Buffer) {
 	src := filepath.Join(path, "src")
-	packageFilePath := filepath.Join(path, "iso-package.json")
+	packageFilePath := filepath.Join(path, "argon-package.json")
 	packageFile, err := os.ReadFile(packageFilePath)
 	if err != nil {
 		log.Fatal(err)
 	}
-	LockFilePath := filepath.Join(path, "iso-package-lock.json")
+	LockFilePath := filepath.Join(path, "iso-lock.json")
 	LockFile, err := os.ReadFile(LockFilePath)
 	if err != nil {
 		log.Fatal(err)
@@ -76,11 +76,11 @@ func ReadPackageAndDependencies(path string) (Package, *bytes.Buffer) {
 	defer gw.Close()
 	tw := tar.NewWriter(gw)
 	defer tw.Close()
-	err = addToArchive(tw, packageFilePath, "iso-package.json")
+	err = addToArchive(tw, packageFilePath, "argon-package.json")
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = addToArchive(tw, LockFilePath, "iso-package-lock.json")
+	err = addToArchive(tw, LockFilePath, "iso-lock.json")
 	if err != nil {
 		log.Fatal(err)
 	}

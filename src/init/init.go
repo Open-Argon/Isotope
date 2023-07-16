@@ -21,9 +21,13 @@ func Init() {
 	dirName := filepath.Base(dir)
 
 	packageName := validpackagename.ValidPackageName(dirName)
+	if packageName == "" {
+		fmt.Println("Invalid package name:", dirName)
+		os.Exit(1)
+	}
 
 	// Create the package.json file
-	packageFile, err := os.Create("iso-package.json")
+	packageFile, err := os.Create("argon-package.json")
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -37,7 +41,7 @@ func Init() {
 }`)
 
 	// Create the package-lock.json file
-	packageLockFile, err := os.Create("iso-package-lock.json")
+	packageLockFile, err := os.Create("iso-lock.json")
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

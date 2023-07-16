@@ -18,7 +18,7 @@ func push() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	packageFilePath := filepath.Join(path, "iso-package.json")
+	packageFilePath := filepath.Join(path, "argon-package.json")
 	packageFile, err := os.ReadFile(packageFilePath)
 	if err != nil {
 		log.Fatal(err)
