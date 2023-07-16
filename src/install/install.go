@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -120,8 +121,10 @@ func installPackage(remote string, URL string, name string, version string, path
 		log.Fatal("Package not valid")
 	}
 	modulepath := filepath.Join(path, "argon_modules", pkg.Name)
-	deleteFilesAndDirectories(modulepath)
-	os.MkdirAll(modulepath, os.ModePerm)
+	tempDir, err := ioutil.TempDir("", "mytempdir")
+	if err != nil {
+		log.Fatal(err)
+	}
 	zipOpen.Seek(0, io.SeekStart)
 	zipReader, err = gzip.NewReader(zipOpen)
 	if err != nil {
@@ -136,7 +139,7 @@ func installPackage(remote string, URL string, name string, version string, path
 		if err != nil {
 			log.Fatal(err)
 		}
-		p := filepath.Join(modulepath, file.Name)
+		p := filepath.Join(tempDir, file.Name)
 		os.MkdirAll(filepath.Dir(p), os.ModePerm)
 		if !file.FileInfo().IsDir() {
 			fileWriter, err := os.Create(p)
@@ -156,7 +159,13 @@ func installPackage(remote string, URL string, name string, version string, path
 				log.Fatal("Circular dependency detected ", dependency.Name, dependency.Version)
 			}
 		}
-		installPackage(remote, dependency.URL, dependency.Name, dependency.Version, modulepath, append(installing, pkg))
+		installPackage(remote, dependency.URL, dependency.Name, dependency.Version, tempDir, append(installing, pkg))
+	}
+	deleteFilesAndDirectories(modulepath)
+	os.MkdirAll(modulepath, os.ModePerm)
+	err = os.Rename(tempDir, modulepath)
+	if err != nil {
+		log.Fatal(err)
 	}
 	fmt.Println("Installed", pkg.Name+"@"+pkg.Version)
 	fmt.Println("Path:", modulepath)
