@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -15,34 +14,50 @@ import (
 	"strings"
 
 	"github.com/Open-Argon/Isotope/src/args"
+	"github.com/Open-Argon/Isotope/src/config"
 	"github.com/Open-Argon/Isotope/src/help"
 	"github.com/Open-Argon/Isotope/src/indexof"
+	initpkg "github.com/Open-Argon/Isotope/src/init"
 	zipPack "github.com/Open-Argon/Isotope/src/package/zip"
 )
 
-var usage = `install [package] [options]`
+const usage = `install [options] [package]`
+
 var o = help.Options{
 	{"specify a specific remote host", "--remote [host]"},
 	{"show help", "--help, -h"},
 }
 
-func deleteFilesAndDirectories(path string) error {
-	err := filepath.Walk(path, func(filePath string, fileInfo os.FileInfo, err error) error {
-		if err != nil {
-			return err
+func deleteDirectoryIfExists(dirPath string) error {
+	// Check if the directory exists
+	_, err := os.Stat(dirPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// Directory does not exist, return without error
+			return nil
 		}
+		// Error occurred while checking directory existence
+		return err
+	}
 
-		err = os.Remove(filePath)
-		if err != nil {
-			return err
-		}
-		return nil
-	})
-
+	// Delete the directory
+	err = os.RemoveAll(dirPath)
 	if err != nil {
 		return err
 	}
+
 	return nil
+}
+
+func installAddDependencies(dependencies []zipPack.Dependency, installing []zipPack.Dependency, remote string, path string, pkg zipPack.Dependency) {
+	for _, dependency := range dependencies {
+		for _, installingDependency := range installing {
+			if dependency.Name == installingDependency.Name && dependency.Version == installingDependency.Version {
+				log.Fatal("Circular dependency detected ", dependency.Name, dependency.Version)
+			}
+		}
+		installPackage(remote, dependency.URL, dependency.Name, dependency.Version, path, append(installing, pkg))
+	}
 }
 
 func installPackage(remote string, URL string, name string, version string, path string, installing []zipPack.Dependency) zipPack.Dependency {
@@ -55,7 +70,7 @@ func installPackage(remote string, URL string, name string, version string, path
 		params := url.Values{}
 		params.Add("name", name)
 		params.Add("version", version)
-		URL = "http://" + remote + "/isotope-search?" + params.Encode()
+		URL = "https://" + remote + "/isotope-search?" + params.Encode()
 		fmt.Println("Searching for", name+"@"+version, "(URL:", URL+")")
 		resp, err := http.Get(URL)
 		if err != nil {
@@ -63,7 +78,7 @@ func installPackage(remote string, URL string, name string, version string, path
 		}
 		defer resp.Body.Close()
 		if resp.StatusCode != 200 {
-			log.Fatal("Package not found")
+			log.Fatal("Package not found: ", resp.StatusCode)
 		}
 		pkg = zipPack.Dependency{}
 		err = json.NewDecoder(resp.Body).Decode(&pkg)
@@ -71,6 +86,8 @@ func installPackage(remote string, URL string, name string, version string, path
 			log.Fatal(err)
 		}
 		URL = pkg.URL
+		fmt.Println("Found", pkg.Name+"@"+pkg.Version, "(URL:", URL+")")
+		fmt.Println()
 	}
 	fmt.Println("Downloading from", URL)
 	resp, err := http.Get(URL)
@@ -79,7 +96,7 @@ func installPackage(remote string, URL string, name string, version string, path
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
-		log.Fatal("Package not found")
+		log.Fatal("Package not found: ", resp.StatusCode)
 	}
 	tempFile, err := os.CreateTemp("", "isotope-download-*.zip")
 	if err != nil {
@@ -120,8 +137,9 @@ func installPackage(remote string, URL string, name string, version string, path
 	if pkg.Name == "" {
 		log.Fatal("Package not valid")
 	}
-	modulepath := filepath.Join(path, "argon_modules", pkg.Name)
-	tempDir, err := ioutil.TempDir("", "mytempdir")
+	argon_modules := filepath.Join(path, "argon_modules")
+	modulepath := filepath.Join(argon_modules, pkg.Name)
+	tempDir, err := os.MkdirTemp("", "isotope-package-install-"+pkg.Name+"-"+pkg.Version+"-")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -153,29 +171,38 @@ func installPackage(remote string, URL string, name string, version string, path
 			fileWriter.Close()
 		}
 	}
-	for _, dependency := range dependencies {
-		for _, installingDependency := range installing {
-			if dependency.Name == installingDependency.Name && dependency.Version == installingDependency.Version {
-				log.Fatal("Circular dependency detected ", dependency.Name, dependency.Version)
-			}
-		}
-		installPackage(remote, dependency.URL, dependency.Name, dependency.Version, tempDir, append(installing, pkg))
-	}
-	deleteFilesAndDirectories(modulepath)
-	os.MkdirAll(modulepath, os.ModePerm)
+	installAddDependencies(dependencies, installing, remote, tempDir, pkg)
+	deleteDirectoryIfExists(modulepath)
+	os.MkdirAll(argon_modules, os.ModePerm)
 	err = os.Rename(tempDir, modulepath)
 	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Println("Installed", pkg.Name+"@"+pkg.Version)
-	fmt.Println("Path:", modulepath)
 	return pkg
 }
 
 func Install() {
 	var args = args.Args[1:]
 	if len(args) == 0 {
-		help.Help(usage, o)
+		path, err := os.Getwd()
+		if err != nil {
+			log.Fatal(err)
+		}
+		lockPath := filepath.Join(path, "iso-lock.json")
+		lockFile, err := os.Open(lockPath)
+		if err != nil {
+			log.Fatal(err)
+		}
+		var dependencies = make([]zipPack.Dependency, 0)
+		err = json.NewDecoder(lockFile).Decode(&dependencies)
+		if err != nil {
+			log.Fatal(err)
+		}
+		lockFile.Close()
+		for _, dependency := range dependencies {
+			installPackage("", dependency.URL, dependency.Name, dependency.Version, path, make([]zipPack.Dependency, 0))
+		}
 		return
 	}
 
@@ -184,7 +211,7 @@ func Install() {
 		global = true
 	}
 	name := args[0]
-	remote := "localhost:3000"
+	remote := config.DefaultRemote
 	version := "latest"
 	switch args[0] {
 	case "--help", "-h":
@@ -214,5 +241,50 @@ func Install() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	installPackage(remote, "", name, version, path, make([]zipPack.Dependency, 0))
+	pkg := installPackage(remote, "", name, version, path, make([]zipPack.Dependency, 0))
+	if !global {
+		initpkg.Init(true, path)
+		lockPath := filepath.Join(path, "iso-lock.json")
+		lockFile, err := os.Open(lockPath)
+		if err != nil {
+			log.Fatal(err)
+		}
+		var dependencies = make([]zipPack.Dependency, 0)
+		err = json.NewDecoder(lockFile).Decode(&dependencies)
+		if err != nil {
+			log.Fatal(err)
+		}
+		lockFile.Close()
+		added := false
+		save := true
+		for _, dependency := range dependencies {
+			if dependency.Name == pkg.Name {
+				if dependency.Version == pkg.Version {
+					dependency.Version = pkg.Version
+					dependency.URL = pkg.URL
+				} else {
+					save = false
+				}
+				added = true
+			}
+		}
+		if !added && save {
+			dependencies = append(dependencies, pkg)
+		}
+		if save {
+			lockFile, err = os.Create(lockPath)
+			if err != nil {
+				log.Fatal(err)
+			}
+			err = json.NewEncoder(lockFile).Encode(dependencies)
+			if err != nil {
+				log.Fatal(err)
+			}
+			lockFile.Close()
+		}
+	}
+
+	fmt.Println("Install path:", path)
+	fmt.Println()
+	fmt.Println("Done!")
 }

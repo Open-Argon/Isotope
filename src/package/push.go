@@ -1,19 +1,25 @@
 package pack
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
 
+	"github.com/Open-Argon/Isotope/src/args"
+	"github.com/Open-Argon/Isotope/src/config"
 	"github.com/Open-Argon/Isotope/src/hash"
 )
 
 func push() {
 	var name string
 	var version string
+	var remote = config.DefaultRemote
 	path, err := os.Getwd()
 	if err != nil {
 		log.Fatal(err)
@@ -37,6 +43,9 @@ func push() {
 	} else {
 		log.Fatal("package version not found")
 	}
+	if len(args.Args) > 2 {
+		remote = args.Args[2]
+	}
 	hash := hash.Sha256Hex(name + "@" + version)
 	zipPath := filepath.Join(path, "__isotope__", "builds", "armod-"+hash+".tar.gz")
 	zipFile, err := os.Open(zipPath)
@@ -45,25 +54,29 @@ func push() {
 	}
 	defer zipFile.Close()
 	fmt.Println("Pushing", name+"@"+version)
+	fmt.Println("Remote:", remote)
 	fmt.Println("Path:", zipPath)
-	fmt.Println("Hash:", hash)
-
-	// make a http post request to the server
-	req, err := http.NewRequest("POST", "https://pkg.argon.wbell.dev/push", zipFile)
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	part, _ := writer.CreateFormFile("file", "file.tar.gz")
+	io.Copy(part, zipFile)
+	writer.Close()
+	writer.WriteField("name", name)
+	writer.WriteField("version", version)
+	r, err := http.NewRequest("POST", "https://"+remote+"/isotope-push", body)
 	if err != nil {
 		log.Fatal(err)
 	}
-	req.Header.Set("Package-Name", name)
-	req.Header.Set("Package-Version", version)
-	req.Header.Set("Package-Hash", hash)
-
-	// send the request
+	r.Method = "POST"
+	r.Header.Add("Content-Type", writer.FormDataContentType())
 	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := client.Do(r)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer resp.Body.Close()
-
-	fmt.Println("Done!")
+	if resp.StatusCode != 200 {
+		log.Fatal("Package not found: ", resp.StatusCode)
+	}
+	fmt.Println("Pushed", name+"@"+version)
 }

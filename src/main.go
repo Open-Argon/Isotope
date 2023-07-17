@@ -1,6 +1,9 @@
 package main
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/Open-Argon/Isotope/src/args"
 	"github.com/Open-Argon/Isotope/src/help"
 	Init "github.com/Open-Argon/Isotope/src/init"
@@ -32,6 +35,11 @@ func main() {
 	case "version":
 		version.PrintVersion()
 	case "init":
-		Init.Init()
+		dir, err := os.Getwd()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		Init.Init(false, dir)
 	}
 }
