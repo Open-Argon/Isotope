@@ -255,22 +255,18 @@ func Install() {
 			log.Fatal(err)
 		}
 		lockFile.Close()
-		added := false
+		var newDependencies = make([]zipPack.Dependency, 0)
 		for _, dependency := range dependencies {
-			if dependency.Name == pkg.Name {
-				dependency.Version = pkg.Version
-				dependency.URL = pkg.URL
-				added = true
+			if dependency.Name != pkg.Name {
+				newDependencies = append(newDependencies, dependency)
 			}
 		}
-		if !added {
-			dependencies = append(dependencies, pkg)
-		}
+		newDependencies = append(newDependencies, pkg)
 		lockFile, err = os.Create(lockPath)
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = json.NewEncoder(lockFile).Encode(dependencies)
+		err = json.NewEncoder(lockFile).Encode(newDependencies)
 		if err != nil {
 			log.Fatal(err)
 		}
