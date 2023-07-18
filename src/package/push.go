@@ -20,6 +20,7 @@ func push() {
 	var name string
 	var version string
 	var remote = config.DefaultRemote
+	var latest = false
 	path, err := os.Getwd()
 	if err != nil {
 		log.Fatal(err)
@@ -44,7 +45,14 @@ func push() {
 		log.Fatal("package version not found")
 	}
 	if len(args.Args) > 2 {
-		remote = args.Args[2]
+		if args.Args[2] == "--latest" {
+			latest = true
+			if len(args.Args) > 3 {
+				remote = args.Args[3]
+			}
+		} else {
+			remote = args.Args[2]
+		}
 	}
 	hash := hash.Sha256Hex(name + "@" + version)
 	zipPath := filepath.Join(path, "__isotope__", "builds", "armod-"+hash+".tar.gz")
@@ -63,6 +71,7 @@ func push() {
 	writer.Close()
 	writer.WriteField("name", name)
 	writer.WriteField("version", version)
+	writer.WriteField("latest", fmt.Sprint(latest))
 	r, err := http.NewRequest("POST", "https://"+remote+"/isotope-push", body)
 	if err != nil {
 		log.Fatal(err)

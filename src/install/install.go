@@ -256,32 +256,25 @@ func Install() {
 		}
 		lockFile.Close()
 		added := false
-		save := true
 		for _, dependency := range dependencies {
 			if dependency.Name == pkg.Name {
-				if dependency.Version == pkg.Version {
-					dependency.Version = pkg.Version
-					dependency.URL = pkg.URL
-				} else {
-					save = false
-				}
+				dependency.Version = pkg.Version
+				dependency.URL = pkg.URL
 				added = true
 			}
 		}
-		if !added && save {
+		if !added {
 			dependencies = append(dependencies, pkg)
 		}
-		if save {
-			lockFile, err = os.Create(lockPath)
-			if err != nil {
-				log.Fatal(err)
-			}
-			err = json.NewEncoder(lockFile).Encode(dependencies)
-			if err != nil {
-				log.Fatal(err)
-			}
-			lockFile.Close()
+		lockFile, err = os.Create(lockPath)
+		if err != nil {
+			log.Fatal(err)
 		}
+		err = json.NewEncoder(lockFile).Encode(dependencies)
+		if err != nil {
+			log.Fatal(err)
+		}
+		lockFile.Close()
 	}
 
 	fmt.Println("Install path:", path)
