@@ -19,9 +19,13 @@ import (
 	"github.com/Open-Argon/Isotope/src/indexof"
 	initpkg "github.com/Open-Argon/Isotope/src/init"
 	zipPack "github.com/Open-Argon/Isotope/src/package/zip"
+	cp "github.com/otiai10/copy"
 )
 
 const usage = `install [options] [package]`
+
+var preInstalled = map[string]string{}
+var preInstalledPkg = map[string]zipPack.Dependency{}
 
 var o = help.Options{
 	{"specify a specific remote host", "--remote [host]"},
@@ -61,6 +65,19 @@ func installAddDependencies(dependencies []zipPack.Dependency, installing []zipP
 }
 
 func installPackage(remote string, URL string, name string, version string, path string, installing []zipPack.Dependency) zipPack.Dependency {
+	if preInstalled[name+"@"+version] != "" {
+		var pkg = preInstalledPkg[name+"@"+version]
+		argon_modules := filepath.Join(path, "argon_modules")
+		modulepath := filepath.Join(argon_modules, pkg.Name)
+		deleteDirectoryIfExists(modulepath)
+		os.MkdirAll(argon_modules, os.ModePerm)
+		err := cp.Copy(preInstalled[name+"@"+version], modulepath)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println("Installed", pkg.Name+"@"+pkg.Version, "(pre-installed)")
+		return preInstalledPkg[name+"@"+version]
+	}
 	var pkg = zipPack.Dependency{
 		Name:    name,
 		Version: version,
@@ -174,10 +191,12 @@ func installPackage(remote string, URL string, name string, version string, path
 	installAddDependencies(dependencies, installing, remote, tempDir, pkg)
 	deleteDirectoryIfExists(modulepath)
 	os.MkdirAll(argon_modules, os.ModePerm)
-	err = os.Rename(tempDir, modulepath)
+	err = cp.Copy(tempDir, modulepath)
 	if err != nil {
 		log.Fatal(err)
 	}
+	preInstalled[name+"@"+version] = tempDir
+	preInstalledPkg[name+"@"+version] = pkg
 	fmt.Println("Installed", pkg.Name+"@"+pkg.Version)
 	return pkg
 }
