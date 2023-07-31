@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/Open-Argon/Isotope/src/args"
+	"github.com/Open-Argon/Isotope/src/auth"
 	"github.com/Open-Argon/Isotope/src/help"
 	Init "github.com/Open-Argon/Isotope/src/init"
 	"github.com/Open-Argon/Isotope/src/install"
@@ -30,8 +31,6 @@ func main() {
 		install.Install()
 	case "package":
 		pack.Pack()
-	case "help":
-		help.Help(usage, options)
 	case "version":
 		version.PrintVersion()
 	case "init":
@@ -41,5 +40,9 @@ func main() {
 			os.Exit(1)
 		}
 		Init.Init(false, dir)
+	case "auth":
+		auth.Auth()
+	default:
+		help.Help(usage, options)
 	}
 }

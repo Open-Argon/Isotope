@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 
 	"github.com/Open-Argon/Isotope/src/args"
+	"github.com/Open-Argon/Isotope/src/auth"
 	"github.com/Open-Argon/Isotope/src/config"
 	"github.com/Open-Argon/Isotope/src/hash"
 )
@@ -61,6 +62,10 @@ func push() {
 		log.Fatal(err)
 	}
 	defer zipFile.Close()
+	auth, err := auth.GetAuth(remote)
+	if err != nil {
+		log.Fatal(err)
+	}
 	fmt.Println("Pushing", name+"@"+version)
 	fmt.Println("Remote:", remote)
 	fmt.Println("Path:", zipPath)
@@ -78,6 +83,7 @@ func push() {
 	}
 	r.Method = "POST"
 	r.Header.Add("Content-Type", writer.FormDataContentType())
+	r.Header.Add("isotope-auth", auth)
 	client := &http.Client{}
 	resp, err := client.Do(r)
 	if err != nil {
