@@ -24,6 +24,7 @@ type Dependency struct {
 	Name    string
 	Version string
 	URL     string
+	Remote  string
 }
 
 func ReadPackageAndDependencies(path string) (Package, *bytes.Buffer) {

@@ -60,11 +60,11 @@ func installAddDependencies(dependencies []zipPack.Dependency, installing []zipP
 				log.Fatal("Circular dependency detected ", dependency.Name, dependency.Version)
 			}
 		}
-		installPackage(remote, dependency.URL, dependency.Name, dependency.Version, path, append(installing, pkg))
+		InstallPackage(remote, dependency.URL, dependency.Name, dependency.Version, path, append(installing, pkg))
 	}
 }
 
-func installPackage(remote string, URL string, name string, version string, path string, installing []zipPack.Dependency) zipPack.Dependency {
+func InstallPackage(remote string, URL string, name string, version string, path string, installing []zipPack.Dependency) zipPack.Dependency {
 	if preInstalled[name+"@"+version] != "" {
 		var pkg = preInstalledPkg[name+"@"+version]
 		argon_modules := filepath.Join(path, "argon_modules")
@@ -82,6 +82,7 @@ func installPackage(remote string, URL string, name string, version string, path
 		Name:    name,
 		Version: version,
 		URL:     URL,
+		Remote:  remote,
 	}
 	if URL == "" {
 		params := url.Values{}
@@ -220,7 +221,7 @@ func Install() {
 		}
 		lockFile.Close()
 		for _, dependency := range dependencies {
-			installPackage("", dependency.URL, dependency.Name, dependency.Version, path, make([]zipPack.Dependency, 0))
+			InstallPackage("", dependency.URL, dependency.Name, dependency.Version, path, make([]zipPack.Dependency, 0))
 		}
 		return
 	}
@@ -260,7 +261,7 @@ func Install() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	pkg := installPackage(remote, "", name, version, path, make([]zipPack.Dependency, 0))
+	pkg := InstallPackage(remote, "", name, version, path, make([]zipPack.Dependency, 0))
 	if !global {
 		initpkg.Init(true, path)
 		lockPath := filepath.Join(path, "iso-lock.json")

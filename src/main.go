@@ -10,6 +10,7 @@ import (
 	Init "github.com/Open-Argon/Isotope/src/init"
 	"github.com/Open-Argon/Isotope/src/install"
 	pack "github.com/Open-Argon/Isotope/src/package"
+	"github.com/Open-Argon/Isotope/src/update"
 	"github.com/Open-Argon/Isotope/src/version"
 )
 
@@ -44,6 +45,8 @@ func main() {
 		Init.Init(false, dir)
 	case "auth":
 		auth.Auth()
+	case "update":
+		update.Update()
 	default:
 		help.Help(usage, options)
 	}
