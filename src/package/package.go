@@ -9,7 +9,7 @@ import (
 var usage = `pack [options]`
 var o = help.Options{
 	{"pack an module into a package", "build [path]"},
-	{"push a module to a remote", "push"},
+	{"push a module to a remote", "push [options]"},
 	{"show help", "--help, -h"},
 }
 

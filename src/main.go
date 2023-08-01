@@ -17,6 +17,8 @@ var usage = "isotope <command> [options]"
 var options = help.Options{
 	{"install a package", "install [options]"},
 	{"package a project", "package [options]"},
+	{"set auth token for pushing to a remote host", "auth [options]"},
+	{"initialize a project", "init"},
 	{"show help", "help"},
 	{"show version", "version"},
 }
