@@ -19,6 +19,7 @@ var options = help.Options{
 	{"install a package", "install [options]"},
 	{"package a project", "package [options]"},
 	{"set auth token for pushing to a remote host", "auth [options]"},
+	{"update all packages in the CWD", "update"},
 	{"initialize a project", "init"},
 	{"show help", "help"},
 	{"show version", "version"},

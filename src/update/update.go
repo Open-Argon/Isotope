@@ -8,15 +8,9 @@ import (
 	"path/filepath"
 
 	"github.com/Open-Argon/Isotope/src/config"
-	"github.com/Open-Argon/Isotope/src/help"
 	"github.com/Open-Argon/Isotope/src/install"
 	"github.com/Open-Argon/Isotope/src/package/zip"
 )
-
-var usage = `update [options]`
-var o = help.Options{
-	{"set remote host", "--remote [host]"},
-}
 
 func Update() {
 	cwd, err := os.Getwd()
