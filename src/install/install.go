@@ -96,9 +96,14 @@ func InstallPackage(remote string, URL string, name string, version string, path
 		}
 		defer resp.Body.Close()
 		if resp.StatusCode != 200 {
-			log.Fatal("Package not found: ", resp.StatusCode)
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				log.Fatal(err)
+			}
+			log.Fatal(string(body)+": ", resp.StatusCode)
 		}
 		pkg = zipPack.Dependency{}
+		pkg.Remote = remote
 		err = json.NewDecoder(resp.Body).Decode(&pkg)
 		if err != nil {
 			log.Fatal(err)
@@ -114,7 +119,11 @@ func InstallPackage(remote string, URL string, name string, version string, path
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
-		log.Fatal("Package not found: ", resp.StatusCode)
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Fatal(string(body)+": ", resp.StatusCode)
 	}
 	tempFile, err := os.CreateTemp("", "isotope-download-*.zip")
 	if err != nil {

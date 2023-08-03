@@ -91,7 +91,11 @@ func push() {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
-		log.Fatal("Package not found: ", resp.StatusCode)
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Fatal(string(body)+": ", resp.StatusCode)
 	}
 	fmt.Println("Pushed", name+"@"+version)
 }
