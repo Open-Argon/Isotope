@@ -29,6 +29,7 @@ var preInstalledPkg = map[string]zipPack.Dependency{}
 
 var o = help.Options{
 	{"specify a specific remote host", "--remote [host]"},
+	{"install globally or locally into your CWD", "--global, -g"},
 	{"show help", "--help, -h"},
 }
 

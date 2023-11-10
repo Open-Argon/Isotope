@@ -10,6 +10,7 @@ import (
 	Init "github.com/Open-Argon/Isotope/src/init"
 	"github.com/Open-Argon/Isotope/src/install"
 	pack "github.com/Open-Argon/Isotope/src/package"
+	"github.com/Open-Argon/Isotope/src/uninstall"
 	"github.com/Open-Argon/Isotope/src/update"
 	"github.com/Open-Argon/Isotope/src/version"
 )
@@ -17,6 +18,7 @@ import (
 var usage = "isotope <command> [options]"
 var options = help.Options{
 	{"install a package", "install [options]"},
+	{"uninstall a package", "uninstall [options]"},
 	{"package a project", "package [options]"},
 	{"set auth token for pushing to a remote host", "auth [options]"},
 	{"update all packages in the CWD", "update"},
@@ -33,6 +35,8 @@ func main() {
 	switch args.Args[0] {
 	case "install":
 		install.Install()
+	case "uninstall":
+		uninstall.Uninstall()
 	case "package":
 		pack.Pack()
 	case "version":
