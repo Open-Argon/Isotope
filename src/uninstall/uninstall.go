@@ -12,10 +12,9 @@ import (
 	"github.com/Open-Argon/Isotope/src/package/zip"
 )
 
-const usage = `uninstall [options] [package]`
+const usage = `uninstall [package] [options]`
 
 var o = help.Options{
-	{"specify a specific remote host", "--remote [host]"},
 	{"install globally or locally into your CWD", "--global, -g"},
 	{"show help", "--help, -h"},
 }
@@ -75,37 +74,45 @@ func Uninstall() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	lockPath := filepath.Join(path, "iso-lock.json")
-	lockFile, err := os.Open(lockPath)
-	if err != nil {
-		log.Fatal(err)
-	}
-	var dependencies = make([]zip.Dependency, 0)
-	err = json.NewDecoder(lockFile).Decode(&dependencies)
-	if err != nil {
-		log.Fatal(err)
-	}
-	lockFile.Close()
-	var newDependencies = make([]zip.Dependency, 0)
-	for index, dependency := range dependencies {
-		if dependency.Name == name {
-			deleteDirectoryIfExists(filepath.Join(path, "argon_modules", dependency.Name))
-			deleted = true
-		} else {
-			newDependencies = append(newDependencies, dependencies[index])
+	if global {
+		var delpath = filepath.Join(path, "argon_modules", name)
+		if _, err := os.Stat(delpath); os.IsNotExist(err) {
+			log.Fatal("Package not found")
 		}
+		deleteDirectoryIfExists(delpath)
+	} else {
+		lockPath := filepath.Join(path, "iso-lock.json")
+		lockFile, err := os.Open(lockPath)
+		if err != nil {
+			log.Fatal(err)
+		}
+		var dependencies = make([]zip.Dependency, 0)
+		err = json.NewDecoder(lockFile).Decode(&dependencies)
+		if err != nil {
+			log.Fatal(err)
+		}
+		lockFile.Close()
+		var newDependencies = make([]zip.Dependency, 0)
+		for index, dependency := range dependencies {
+			if dependency.Name == name {
+				deleteDirectoryIfExists(filepath.Join(path, "argon_modules", dependency.Name))
+				deleted = true
+			} else {
+				newDependencies = append(newDependencies, dependencies[index])
+			}
+		}
+		if !deleted {
+			log.Fatal("Package not found")
+		}
+		lockFile, err = os.Create(lockPath)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = json.NewEncoder(lockFile).Encode(newDependencies)
+		if err != nil {
+			log.Fatal(err)
+		}
+		lockFile.Close()
 	}
-	if !deleted {
-		log.Fatal("Package not found")
-	}
-	lockFile, err = os.Create(lockPath)
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = json.NewEncoder(lockFile).Encode(newDependencies)
-	if err != nil {
-		log.Fatal(err)
-	}
-	lockFile.Close()
 	fmt.Println("Uninstalled package:", name)
 }
