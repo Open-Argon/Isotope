@@ -60,7 +60,7 @@ func Uninstall() {
 		name = args[0]
 	}
 	if len(args) > 1 {
-		if args[1] == "--global" || args[0] == "-g" {
+		if args[1] == "--global" || args[1] == "-g" {
 			global = true
 		}
 	}
