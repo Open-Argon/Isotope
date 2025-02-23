@@ -263,8 +263,7 @@ func Install() {
 	var path string
 	var err error
 	if global {
-		path, err = os.Executable()
-		path = filepath.Dir(path)
+		path = config.GlobalPath
 	} else {
 		path, err = os.Getwd()
 	}

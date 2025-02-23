@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/Open-Argon/Isotope/src/config"
 	"github.com/Open-Argon/Isotope/src/help"
 )
 
@@ -29,11 +30,7 @@ var o = help.Options{
 }
 
 func Auth() {
-	executable, err := os.Executable()
-	if err != nil {
-		log.Fatal(err)
-	}
-	dir := filepath.Dir(executable)
+	dir := filepath.Dir(config.GlobalPath)
 	authPath := filepath.Join(dir, "isotope-auth.json")
 	auths := make(map[string]string)
 	if fileExists(authPath) {
@@ -96,11 +93,7 @@ func Auth() {
 }
 
 func GetAuth(domain string) (string, error) {
-	executable, err := os.Executable()
-	if err != nil {
-		return "", err
-	}
-	dir := filepath.Dir(executable)
+	dir := filepath.Dir(config.GlobalPath)
 	authPath := filepath.Join(dir, "isotope-auth.json")
 	auths := make(map[string]string)
 	if fileExists(authPath) {

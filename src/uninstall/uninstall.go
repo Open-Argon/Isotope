@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/Open-Argon/Isotope/src/args"
+	"github.com/Open-Argon/Isotope/src/config"
 	"github.com/Open-Argon/Isotope/src/help"
 	"github.com/Open-Argon/Isotope/src/package/zip"
 )
@@ -66,8 +67,7 @@ func Uninstall() {
 	}
 	var err error
 	if global {
-		path, err = os.Executable()
-		path = filepath.Dir(path)
+		path = config.GlobalPath
 	} else {
 		path, err = os.Getwd()
 	}
