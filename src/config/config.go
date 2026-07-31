@@ -3,7 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
-	"path"
+	"path/filepath"
 )
 
 const DefaultRemote = "isotope.wbell.dev"
@@ -11,9 +11,14 @@ const DefaultRemote = "isotope.wbell.dev"
 var GlobalPath string
 
 func init() {
-	var home_dir, err = os.UserHomeDir()
+	var executable, err = os.Executable()
 	if err != nil {
 		fmt.Println("Error:", err)
 	}
-	GlobalPath = path.Join(home_dir, ".argon")
+
+	executable, err = filepath.EvalSymlinks(executable)
+	if err != nil {
+		fmt.Println("Error:", err)
+	}
+	GlobalPath = filepath.Dir(filepath.Dir(executable))
 }

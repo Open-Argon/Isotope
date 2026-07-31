@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
@@ -51,20 +52,20 @@ func ReadPackageAndDependencies(path string) (Package, *bytes.Buffer) {
 	if err := json.Unmarshal(LockFile, &lock); err != nil {
 		log.Fatal(err)
 	}
-	name, ok := pkg["name"]
-	if !ok && name.(string) == "" {
+	name, ok := pkg["name"].(string)
+	if !ok || name == "" {
 		log.Fatal("package name not found")
 	}
-	if validpackagename.ValidPackageName(name.(string)) != name.(string) {
+	if validpackagename.ValidPackageName(name) != name {
 		log.Fatal("package name is invalid")
 	}
-	version, ok := pkg["version"]
-	if !ok && version.(string) == "" {
+	version, ok := pkg["version"].(string)
+	if !ok && version == "" {
 		log.Fatal("package version not found")
 	}
 
-	pkgObj.Name = name.(string)
-	pkgObj.Version = version.(string)
+	pkgObj.Name = name
+	pkgObj.Version = version
 	pkgObj.Dependencies = lock
 
 	if _, err := os.Stat(src); os.IsNotExist(err) {
@@ -85,25 +86,25 @@ func ReadPackageAndDependencies(path string) (Package, *bytes.Buffer) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = filepath.Walk(src, func(filePath string, info os.FileInfo, err error) error {
+	err = filepath.WalkDir(src, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if err != nil {
-			return err
+
+		if d.IsDir() && d.Name() == "__arcache__" {
+			return filepath.SkipDir
 		}
-		if info.IsDir() {
+
+		if d.IsDir() {
 			return nil
 		}
-		saveAs, err := filepath.Rel(src, filePath)
+
+		saveAs, err := filepath.Rel(src, path)
 		if err != nil {
 			return err
 		}
-		err = addToArchive(tw, filePath, saveAs)
-		if err != nil {
-			return err
-		}
-		return nil
+
+		return addToArchive(tw, path, saveAs)
 	})
 	if err != nil {
 		panic(fmt.Errorf("failed to create zip file contents: %w", err))
