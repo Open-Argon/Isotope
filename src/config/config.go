@@ -9,6 +9,7 @@ import (
 const DefaultRemote = "isotope.wbell.dev"
 
 var GlobalPath string
+var UserPath string
 
 func init() {
 	var executable, err = os.Executable()
@@ -21,4 +22,8 @@ func init() {
 		fmt.Println("Error:", err)
 	}
 	GlobalPath = filepath.Dir(filepath.Dir(executable))
+	UserPath, err = os.UserHomeDir()
+	if err != nil {
+		fmt.Println("Error:", err)
+	}
 }

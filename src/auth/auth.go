@@ -30,8 +30,7 @@ var o = help.Options{
 }
 
 func Auth() {
-	dir := filepath.Dir(config.GlobalPath)
-	authPath := filepath.Join(dir, "isotope-auth.json")
+	authPath := filepath.Join(config.UserPath, "isotope-auth.json")
 	auths := make(map[string]string)
 	if fileExists(authPath) {
 		reader, err := os.Open(authPath)
@@ -93,8 +92,7 @@ func Auth() {
 }
 
 func GetAuth(domain string) (string, error) {
-	dir := filepath.Dir(config.GlobalPath)
-	authPath := filepath.Join(dir, "isotope-auth.json")
+	authPath := filepath.Join(config.UserPath, "isotope-auth.json")
 	auths := make(map[string]string)
 	if fileExists(authPath) {
 		reader, err := os.Open(authPath)
