@@ -11,8 +11,10 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	validpackagename "github.com/Open-Argon/Isotope/src/validPackageName"
+	ignore "github.com/sabhiram/go-gitignore"
 )
 
 type Package struct {
@@ -28,14 +30,50 @@ type Dependency struct {
 	Remote  string
 }
 
-func ReadPackageAndDependencies(path string) (Package, *bytes.Buffer) {
-	src := filepath.Join(path, "src")
-	packageFilePath := filepath.Join(path, "argon-package.json")
+func loadIgnoreFile(containPath string) (*ignore.GitIgnore, error) {
+	path := filepath.Join(containPath, ".isotopeignore")
+
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return ignore.CompileIgnoreLines(), nil
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	lines := strings.Split(string(data), "\n")
+	return ignore.CompileIgnoreLines(lines...), nil
+}
+
+func findLicenseFile(containPath string) string {
+	candidates := []string{
+		"LICENSE",
+		"LICENSE.txt",
+		"LICENSE.md",
+		"LICENCE",
+		"LICENCE.txt",
+		"LICENCE.md",
+	}
+
+	for _, name := range candidates {
+		path := filepath.Join(containPath, name)
+		if _, err := os.Stat(path); err == nil {
+			return path
+		}
+	}
+
+	return ""
+}
+
+func ReadPackageAndDependencies(contain_path string) (Package, *bytes.Buffer) {
+	src := filepath.Join(contain_path, "src")
+	packageFilePath := filepath.Join(contain_path, "argon-package.json")
 	packageFile, err := os.ReadFile(packageFilePath)
 	if err != nil {
 		log.Fatal(err)
 	}
-	LockFilePath := filepath.Join(path, "iso-lock.json")
+	LockFilePath := filepath.Join(contain_path, "iso-lock.json")
 	LockFile, err := os.ReadFile(LockFilePath)
 	if err != nil {
 		log.Fatal(err)
@@ -78,6 +116,14 @@ func ReadPackageAndDependencies(path string) (Package, *bytes.Buffer) {
 	defer gw.Close()
 	tw := tar.NewWriter(gw)
 	defer tw.Close()
+	build, ok := pkg["build"].(string)
+	if ok {
+		buildFilePath := filepath.Join(contain_path, build)
+		err = addToArchive(tw, buildFilePath, build)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 	err = addToArchive(tw, packageFilePath, "argon-package.json")
 	if err != nil {
 		log.Fatal(err)
@@ -86,9 +132,36 @@ func ReadPackageAndDependencies(path string) (Package, *bytes.Buffer) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	licensePath := findLicenseFile(contain_path)
+	if licensePath != "" {
+		err = addToArchive(tw, licensePath, filepath.Base(licensePath))
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	isotopeIgnore, err := loadIgnoreFile(contain_path)
+	if err != nil {
+		log.Fatal(err)
+	}
 	err = filepath.WalkDir(src, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
+		}
+		relPath, err := filepath.Rel(contain_path, path)
+		if err != nil {
+			return err
+		}
+
+		// gitignore expects forward slashes
+		relPath = filepath.ToSlash(relPath)
+
+		if isotopeIgnore.MatchesPath(relPath) {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
 		}
 
 		if d.IsDir() && d.Name() == "__arcache__" {
@@ -99,12 +172,7 @@ func ReadPackageAndDependencies(path string) (Package, *bytes.Buffer) {
 			return nil
 		}
 
-		saveAs, err := filepath.Rel(src, path)
-		if err != nil {
-			return err
-		}
-
-		return addToArchive(tw, path, saveAs)
+		return addToArchive(tw, path, relPath)
 	})
 	if err != nil {
 		panic(fmt.Errorf("failed to create zip file contents: %w", err))

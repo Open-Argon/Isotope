@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -62,6 +63,24 @@ func installAddDependencies(dependencies []zipPack.Dependency, installing []zipP
 			}
 		}
 		InstallPackage(remote, dependency.URL, dependency.Name, dependency.Version, path, append(installing, pkg))
+	}
+}
+
+func runBuildScriptAndDeleteBuild(directory string, script string) {
+	build_script := filepath.Join(directory, script)
+	cmd := exec.Command("argon", build_script)
+	cmd.Dir = directory
+
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		log.Fatal(err)
+	}
+
+	if err := os.Remove(build_script); err != nil {
+		log.Fatal(err)
 	}
 }
 
@@ -146,6 +165,7 @@ func InstallPackage(remote string, URL string, name string, version string, path
 	defer zipReader.Close()
 	tarReader := tar.NewReader(zipReader)
 	var dependencies = make([]zipPack.Dependency, 0)
+	var build_script string = ""
 	for {
 		file, err := tarReader.Next()
 		if err == io.EOF {
@@ -159,6 +179,15 @@ func InstallPackage(remote string, URL string, name string, version string, path
 			err = json.NewDecoder(tarReader).Decode(&dependencies)
 			if err != nil {
 				log.Fatal(err)
+			}
+		case "argon-package.json":
+			var pkg map[string]any
+			if err := json.NewDecoder(tarReader).Decode(&pkg); err != nil {
+				log.Fatal(err)
+			}
+			build, ok := pkg["build"].(string)
+			if ok {
+				build_script = build
 			}
 		}
 	}
@@ -200,6 +229,31 @@ func InstallPackage(remote string, URL string, name string, version string, path
 		}
 	}
 	installAddDependencies(dependencies, installing, remote, tempDir, pkg)
+	if len(build_script) != 0 {
+		runBuildScriptAndDeleteBuild(tempDir, build_script)
+	}
+	// move contents from src up a directory
+
+	src := filepath.Join(tempDir, "src")
+
+	entries, err := os.ReadDir(src)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, entry := range entries {
+		oldPath := filepath.Join(src, entry.Name())
+		newPath := filepath.Join(tempDir, entry.Name())
+
+		if err := os.Rename(oldPath, newPath); err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	if err := os.Remove(src); err != nil {
+		log.Fatal(err)
+	}
+
 	deleteDirectoryIfExists(modulepath)
 	os.MkdirAll(argon_modules, os.ModePerm)
 	err = cp.Copy(tempDir, modulepath)
